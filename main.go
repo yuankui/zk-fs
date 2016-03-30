@@ -17,6 +17,19 @@ import (
 )
 
 const NODE_FILE string = ".node"
+const NODE_FILE_SLASH = "/.node"
+
+func convertPath(path string) string {
+	if path == NODE_FILE {
+		return "/"
+	}
+
+	if strings.HasSuffix(path, NODE_FILE) {
+		return "/" + path[0:len(path) - len(NODE_FILE_SLASH)]
+	}
+
+	return "/" + path
+}
 
 type zkClient struct {
 	client *zk.Conn
@@ -48,12 +61,7 @@ func (me *ZkFs) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fuse.St
 	fmt.Println("get attr:", name)
 	switch {
 	case strings.HasSuffix(name, NODE_FILE):
-		var path string = name
-		if name == ".node" {
-			path = "/"
-		} else {
-			path = "/" + name[:len(name) - 1 - len(NODE_FILE)]
-		}
+		var path string = convertPath(name)
 		_, stat, err := me.client.Get(path)
 
 		var dataLen uint64 = 0
@@ -64,12 +72,13 @@ func (me *ZkFs) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fuse.St
 		} else {
 			dataLen = uint64(stat.DataLength)
 		}
+		fmt.Println(stat.Mtime)
 		return &fuse.Attr{
-			Mode: fuse.S_IFREG | 0644, Size: dataLen,
+			Mode: fuse.S_IFREG | 0444, Size: dataLen, Mtime: uint64(stat.Mtime)/1000,
 		}, fuse.OK
 	case name == "":
 		return &fuse.Attr{
-			Mode: fuse.S_IFDIR | 0755,
+			Mode: fuse.S_IFDIR | 0555,
 		}, fuse.OK
 	default:
 		return &fuse.Attr{
@@ -82,7 +91,7 @@ func (me *ZkFs) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fuse.St
 func (me *ZkFs) OpenDir(name string, context *fuse.Context) (c []fuse.DirEntry, code fuse.Status) {
 	fmt.Println("open dir:", name)
 
-	children, err := me.client.List("/" + name)
+	children, err := me.client.List(convertPath(name))
 
 	if err != nil {
 		return nil, fuse.EINVAL
@@ -99,22 +108,15 @@ func (me *ZkFs) OpenDir(name string, context *fuse.Context) (c []fuse.DirEntry, 
 
 func (me *ZkFs) Open(name string, flags uint32, context *fuse.Context) (file nodefs.File, code fuse.Status) {
 
-	if !strings.HasSuffix(name, "/" + NODE_FILE) {
-		return nil, fuse.EINVAL
-	}
+	name = convertPath(name)
 
-	// remove suffix /.node
-	name = name[:len(name) - len(NODE_FILE) - 1]
-	bytes,_, err := me.client.Get("/" + name)
+	bytes,_, err := me.client.Get(name)
 	fmt.Println("getting zk node: ", "/" + name)
 	fmt.Println(string(bytes))
 	if err != nil {
-		fmt.Println(string(bytes))
 		fmt.Println(err)
 		return nil, fuse.EINVAL
 	}
-
-
 	return nodefs.NewDataFile(bytes), fuse.OK
 }
 
