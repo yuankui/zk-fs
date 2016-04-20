@@ -10,6 +10,6 @@
 ## build
 
 
-  go get github.com/yuankui/zk-fs
-  go install github.com/yuankui/zk-fs
-  zk-fs <mount_point> <zk_addr>
+    go get github.com/yuankui/zk-fs
+    go install github.com/yuankui/zk-fs
+    zk-fs <mount_point> <zk_addr>
