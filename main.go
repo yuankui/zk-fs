@@ -122,7 +122,7 @@ func (me *ZkFs) Open(name string, flags uint32, context *fuse.Context) (file nod
 
 func main() {
 	if len(os.Args) < 2 {
-		log.Fatal("Usage:\n  hello <mount_dir> <zk>")
+		log.Fatal("Usage:\n  zk-fs <mount_dir> <zk>")
 	}
 
 	var client zkClient = zkClient{}
